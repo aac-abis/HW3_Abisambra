@@ -1,0 +1,218 @@
+---
+title: "HW 3 Nonlinear & Nonparametric Regression: Data Analysis Problems"
+subtitle: "Advanced Regression (STAT 353-0)"
+author: "YOUR NAME"
+pagetitle: "HW 3 YOUR NAME"
+date: today
+
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    embed-resources: true
+    code-fold: false
+    link-external-newwindow: true
+    theme: cosmo
+
+execute:
+  warning: false
+
+from: markdown+emoji
+reference-location: margin
+citation-location: margin  
+---
+
+::: {.callout-tip icon=false}
+
+## Github Repo Link
+
+To link to your github **repo**sitory, appropriately edit the example link below. Meaning replace `https://your-github-repo-url` with your github repo url. Suggest verifying the link works before submitting.
+
+[https://your-github-repo-url](https://your-github-repo-url)
+
+:::
+
+::: {.callout-important}
+
+All students are required to complete this problem set!
+
+:::
+
+## Load packages & data
+
+
+```{r}
+#| label: load-pkgs-data
+
+# load package(s)
+
+
+# load data
+
+```
+
+
+## Data analysis problems
+
+### 1. Exercise D17.1 
+
+The data in `Ginzberg.txt` (collected by Ginzberg) were analyzed by Monette (1990). The data are for a group of 82 psychiatric patients hospitalized for depression. The response variable in the data set is the patient's score on the Beck scale, a widely used measure of depression. The explanatory variables are "simplicity" (measuring the degree to which the patient "sees the world in black and white") and "fatalism". (These three variables have been adjusted for other explanatory variables that can influence depression.) Use the adjusted scores for the analysis.
+
+Using the full quadratic regression model
+
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1^2 + \beta_4 X_2^2 + \beta_5 X_1 X_2 + \epsilon$$
+
+regress the Beck-scale scores on simplicity and fatalism.
+
+(a) Are the quadratic and product terms needed here?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+(b) Graph the data and the fitted regression surface in three dimensions. Do you see any problems with the data?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+(c) What do standard regression diagnostics for influential observations show?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+### 2. Exercise D18.2 
+
+For this analysis, use the `States.txt` data, which includes average SAT scores for each state as the outcome.
+
+(a) Put together a model with SAT math (`satMath`) as the outcome and `region`, `population`, `percentTaking`,  and `teacherPay` as the explanatory variables, each included as linear terms. Interpret the findings.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+(b) Now, instead approach building this model using the nonparametric-regression methods discussed in Chapter 18 of our main course textbook, FOX. Fit a general nonparametric regression model *and* an additive-regression model, comparing the results to each other and to the linear least-squares fit to the data (in part (a))). If you have problems with categorical variables for the nonparametric models, feel free to remove them. Be sure to explain the models.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+(c) Can you handle the nonlinearity by a transformation or by another parametric regression model, such as a polynomial regression? Investigate and explain. What are the tradeoffs between these nonparametric and parametric approaches?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+### 3. Exercise D18.3
+
+Return to the `Chile.txt` dataset used in HW 2. Reanalyze the data employing generalized nonparametric regression (including generalized additive) models. As in HW2, you can remove abstained and undecided votes, and focus only on Yes and No votes.
+
+(a) What, if anything, do you learn about the data from the nonparametric regression?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+(b) If the results appear to be substantially nonlinear, can you deal with the nonlinearity in a suitably respecified generalized linear model (e.g., by transforming one or more explanatory variables)? If they do not appear nonlinear, still try a transformation to see if anything changes.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+### 4. Exercise E18.7
+
+For this analysis, use the `Duncan.txt` data. Here we are interested in the outcome `prestige` and the explanatory variable `income`.
+
+(a) Fit the local-linear regression of prestige on income with span $s = 0.6$ (see Figure 18.7 in the book). This has 5.006 equivalent degrees of freedom, very close to the number of degrees of freedom for a fourth order polynomial.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
+
+(b) Fit a fourth order polynomial of the data and compare the resulting regression curve with the local-linear regression.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+YOUR SOLUTION HERE
+
+```{r}
+
+
+```
+
+:::
