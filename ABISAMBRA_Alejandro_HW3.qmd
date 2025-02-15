@@ -1,0 +1,648 @@
+---
+title: "HW 3 Nonlinear & Nonparametric Regression: Data Analysis Problems"
+subtitle: "Advanced Regression (STAT 353-0)"
+author: "Alejandro Abisambra"
+pagetitle: "HW 3 ABISAMBRA"
+date: today
+
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    embed-resources: true
+    code-fold: false
+    link-external-newwindow: true
+    theme: cosmo
+
+execute:
+  warning: false
+
+from: markdown+emoji
+reference-location: margin
+citation-location: margin  
+---
+
+::: {.callout-tip icon=false}
+
+## Github Repo Link
+
+To link to your github **repo**sitory, appropriately edit the example link below. Meaning replace `https://your-github-repo-url` with your github repo url. Suggest verifying the link works before submitting.
+
+[https://github.com/aac-abis/HW3_Abisambra.git](https://github.com/aac-abis/HW3_Abisambra.git)
+
+:::
+
+::: {.callout-important}
+
+All students are required to complete this problem set!
+
+:::
+
+## Load packages & data
+
+
+```{r}
+#| label: load-pkgs-data
+#| message: false
+#| warning: false
+#| code-fold: true
+
+# load package(s)
+library(tidyverse)
+library("car")
+library(gridExtra)
+library(rgl)
+library(stargazer)
+library(mgcv)
+library(tidymodels)
+    tidymodels_prefer()
+    
+# load data
+ginz <- read.csv("data/Ginzberg.txt", header = TRUE, sep = "")
+states <- read.csv("data/States.txt", header = TRUE, sep = "")
+duncan <- read.csv("data/Duncan.txt", header = T, sep = "")
+
+```
+
+
+## Data analysis problems
+
+### 1. Exercise D17.1 
+
+The data in `Ginzberg.txt` (collected by Ginzberg) were analyzed by Monette (1990). The data are for a group of 82 psychiatric patients hospitalized for depression. The response variable in the data set is the patient's score on the Beck scale, a widely used measure of depression. The explanatory variables are "simplicity" (measuring the degree to which the patient "sees the world in black and white") and "fatalism". (These three variables have been adjusted for other explanatory variables that can influence depression.) Use the adjusted scores for the analysis.
+
+Using the full quadratic regression model
+
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1^2 + \beta_4 X_2^2 + \beta_5 X_1 X_2 + \epsilon$$
+
+regress the Beck-scale scores on simplicity and fatalism.
+
+(a) Are the quadratic and product terms needed here?
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| include: false
+ginz$adjsimp2 <- (ginz$adjsimplicity)^2
+ginz$adjfat2 <- (ginz$adjfatalism)^2
+```
+
+**Model and Summary Table**
+```{r}
+m1 <-  lm(adjdepression ~ adjsimplicity*adjfatalism + adjsimp2 + adjfat2, 
+          data = ginz)
+
+m1a <- lm(adjdepression ~ adjsimplicity + adjfatalism + adjsimp2 + adjfat2, 
+          data = ginz)
+
+m1b <- lm(adjdepression ~ adjsimplicity*adjfatalism, 
+          data = ginz)
+
+S(m1)
+```
+**Anova Table to Analyze Quadratic and Product Terms Significance**
+```{r}
+Anova(m1)
+```
+```{r}
+anova(m1b, m1a, m1)
+```
+
+```{r fig.width=10, fig.height=5}
+g1 <- ggplot(ginz, mapping = aes(x = adjfatalism, y = adjdepression)) + 
+      geom_point() +
+      geom_smooth(method= "loess", se=FALSE, color = "blue") +
+      geom_smooth(method = "lm", se = FALSE, color = "red")
+
+g2 <- ggplot(ginz, mapping = aes(x = adjsimplicity, y = adjdepression)) + 
+      geom_point() +
+      geom_smooth(method= "loess", se=FALSE, color = "blue") +
+      geom_smooth(method = "lm", se = FALSE, color = "red")
+
+grid.arrange(g1, g2, ncol = 2)
+```
+
+**Interpretation**
+
+We should not include the quadratic terms or the product (interaction) term. As we can see from the type II Anova tables above, including the quadratic terms in the model does not improve model fit in a statistically significant way. The p-value for each of the quadratic terms is large (p > 0.2). Similarly, the p-value for the interaction term is not statistically significant (p>0.05), although it is very close to the cutoff point. In the name of simplicity and parsimony, and given that these terms do not significantly improve the model fit, we should **not** include them.
+
+This is further ratified by the graphs which plot the relation between the un-squared terms (adjsimplicity and adjfatality) and the outcome. As we can see from the graphs, a flexible LOESS fit (in blue) is not very different from a simple linear fit (in red). The largest difference between the LOESS and the linear fit is at the boundary values, which is to be expected since this is the region where LOESS would generally perform more poorly. 
+
+In summary: NO, we should not include the quadratic terms or the interaction term.
+
+:::
+
+(b) Graph the data and the fitted regression surface in three dimensions. Do you see any problems with the data?
+
+::: {.callout-tip icon="false"}
+## Solution
+I used the function suggested in the R companion (scatter3d), using a quadratic fit and including the interaction. I used the rglwidget to include it in the rendered HTML.
+
+From the information plotted in this 3-D graph, it appears that the residuals for the points that are above of the fitted regression (blue lines) are larger overall than the residuals for the points that are below the fitted regression (purple lines). It also appears that there are a few observations that have residuals that are (visually) comparatively much larger than the rest, which may in turn result in them having undue influence over the model's estimated parameters. 
+
+To further explore for this possibility, I will conduct an analysis of influence in the next section.
+
+```{r}
+scatter3d(adjdepression ~ adjsimplicity*adjfatalism,
+          data = ginz, 
+          fit = "quadratic",
+          model.summary = T)
+rglwidget()
+```
+
+:::
+
+(c) What do standard regression diagnostics for influential observations show?
+
+::: {.callout-tip icon="false"}
+## Solution
+Performing an outliers test, using Bonferroni measures, shows that there is 1 observation that meets the outlier criteria, as shown above (id = 71).
+
+```{r}
+outlierTest(m1)
+
+```
+Further, doing a more comprehensive analysis of influence including other measures like cook distance and hat values, shows that observations #65 and #80 are also potential candidates for having large influence in the model. Cook Distance is high for #80, and the hat values for both #65 and #80 are significantly larger than the rest of observations. Observation #70 stands out in terms of studentized residual and bonferroni, but is slightly below critical levels, so I will not consider as influential.   
+
+```{r fig.height=8, fig.width=8}
+influenceIndexPlot(m1)
+```
+
+Given that there are 3 potential influential points (#71, #65, #80), I will re-run the model excluding these observations and compare the changes to assess if they are meaningful. 
+
+```{r}
+#| code-fold: true
+exclude <- c(65, 71, 80)
+
+ginz_a <- ginz %>%
+  rownames_to_column(var = "row_name") %>%  # Convert row names to a column
+  filter(!(row_name %in% exclude)) %>%      # Filter out rows in the exclude vector
+  column_to_rownames(var = "row_name")      # Convert the column back to row names
+
+
+m1alt <- lm(adjdepression ~ adjsimplicity*adjfatalism + adjsimp2 + adjfat2, 
+          data = ginz_a)
+
+residual_deviance <- c(
+  deviance(m1),
+  deviance(m1alt))
+
+stargazer(m1, m1alt, type = "text", add.lines = 
+            list(c("Residual Deviance", residual_deviance)))
+```
+
+```{r}
+compareCoefs(m1, m1alt, pvals = T, digits = 4)
+```
+**Interpretation**
+The results of the model do not seem to be robust to the exclusion of influential data points. As we can see from the comparisons above, the results change in meaningful ways once we exclude the influential data points. First, the interaction coefficient flips sign and loses statistical significance after excluding the data points. 
+
+Second, the quadratic terms also flip sign, but they remain non-significant under both specifications so we don't have evidence to believe that these coefficients are different from zero to begin with.
+
+Third, in terms of statistical significance, the main effects of simplicity and fatalism react in opposite ways to the exclusion of data points. Simplicity goes from a (p-value < 0.01) to a p-value < 0.1, which is a big change. In the opposite direction, fatalism goes from a $p<0.1$ to $p < 0.05$. These changes are meaningful enough to change our confidence in the point estimates. However, it is still important to note that for the main effects the coefficients remain of the same sign and a relatively similar magnitude: the big changes are mainly in the standard errors. 
+
+In summary, the fact that the results are not robust to the exclusion of influential points should be highly alarming and decrease our confidence in the model overall. If it were up to me, I would not consider the evidence from this model to be informative or conclusive and I would not rely on it. 
+
+:::
+
+### 2. Exercise D18.2 
+
+For this analysis, use the `States.txt` data, which includes average SAT scores for each state as the outcome.
+
+(a) Put together a model with SAT math (`satMath`) as the outcome and `region`, `population`, `percentTaking`,  and `teacherPay` as the explanatory variables, each included as linear terms. Interpret the findings.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+**Note: I will transform region into a factor, using ENC as the baseline since that is where IL is located. I will also center the continuous variables**.
+
+```{r}
+#| code-fold: true
+states$region <- as.factor(states$region)
+contrasts(states$region) <- contr.Treatment(levels(states$region),
+                                            base = 1)
+
+# centering variables
+varnames <- c("population", "percentTaking", "teacherPay")
+
+for(i in varnames){
+  states[[paste0(i, "_c")]] <- states[[i]] - mean(states[[i]])
+}
+
+m2 <- lm(satMath ~ population_c + percentTaking_c + teacherPay_c + region, 
+         data = states)
+
+# S(m2, digits = 4)
+stargazer(m2, type = "text")
+```
+
+**Interpretation**
+All the continuous variables are centered around the mean, and the baseline for region is ENC, which is the one where Illinois is located.
+
+First of all, for the average state in the ENC region, the average score in SAT Math is 536.01, holding the continuous covariates at their means.
+
+Holding covariates at their means, only the states in the WNC and NE regions have Math scores that are higher, on average, than those in the ENC regions. However, this relationship is *not* statistically significant. In fact, the Math scores for all regions (except SA) are not statistically significantly different from those of the ENC region. 
+
+The math scores of the SA region are 25.4 points lower, on average, than those in the ENC region, holding all other continuous covariates constant. This difference is statistically significant. 
+
+In terms of teacher pay, an increase in a $1,000 dollars from the all-state-average teacher compensation is associated with an increase of 0.37 points in the math score. However, this relationship is not statistically significant. 
+
+In contrast, a 1pp increase in the percentage of students taking the SAT in a given state is associated with a decrease of 1.08 points in the math score, all else equal. However, this relationship is not statistically significant. 
+
+Finally, an increase of 1,000 people in the population of a state is associated with a decrease in the math score by 0.001 points. However, this relationship is not statistically significant. 
+
+:::
+
+(b) Now, instead approach building this model using the nonparametric-regression methods discussed in Chapter 18 of our main course textbook, FOX. Fit a general nonparametric regression model *and* an additive-regression model, comparing the results to each other and to the linear least-squares fit to the data (in part (a))). If you have problems with categorical variables for the nonparametric models, feel free to remove them. Be sure to explain the models.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+**First, I will run a series of models, and then further below I will compare them**. For some of the models I will present a series of plots before formally comparing them. 
+
+First, I will **re-run the linear model** without the categorical variables to have as an appropriate benchmark.
+
+```{r}
+m2_lm <- lm(satMath ~ population_c + percentTaking_c + teacherPay_c, 
+         data = states)
+```
+
+Now I will run a series of **LOESS models**, trying different degrees and spans in the code below. 
+
+```{r}
+#| code-fold: true
+# degree 1, span 0.75
+m2_loess1 <- loess(satMath ~ population_c + percentTaking_c + teacherPay_c, 
+                   data = states,
+                   degree = 1,
+                   span = 0.75)
+# degree 2, span 0.75
+m2_loess2 <- loess(satMath ~ population_c + percentTaking_c + teacherPay_c, 
+                   data = states,
+                   degree = 2,
+                   span = 0.75)
+
+# degree 1, span 0.5
+m2_loess3 <- loess(satMath ~ population_c + percentTaking_c + teacherPay_c, 
+                   data = states,
+                   degree = 1,
+                   span = 0.5)
+# degree 2, span 0.5
+m2_loess4 <- loess(satMath ~ population_c + percentTaking_c + teacherPay_c, 
+                   data = states,
+                   degree = 2,
+                   span = 0.5)
+```
+
+Now I will try some **general additive models (GAMs)** in the code below:
+
+```{r fig.height=5, fig.width=15}
+#| code-fold: true
+# auto/default # of knots
+m2_gam1 <- gam(satMath ~ s(population_c) + s(percentTaking_c) + s(teacherPay_c), 
+                   data = states)
+
+# 3 knots
+m2_gam2 <- gam(satMath ~ s(population_c, k = 5, bs = "cr") 
+               + s(percentTaking_c, k = 5, bs = "cr") 
+               + s(teacherPay_c, k = 5, bs = "cr"), 
+                   data = states)
+par(mfrow = c(1,3), cex.lab = 2)
+plot(m2_gam2, residuals = TRUE, pch = 19, col = "blue", se = FALSE)
+mtext("GAM Model, Default Knots", side = 3, line = -3, outer = TRUE, 
+      cex = 1.5, font = 4, cex.lab = 2)
+
+plot(m2_gam1, residuals = TRUE, pch = 19, col = "blue", se = FALSE)
+mtext("GAM model, 5 knots, cubic regression spline", 
+      side = 3, line = -3, outer = TRUE, 
+      cex = 1.5, font = 4, cex.lab = 2)
+```
+#### Comparison of the Models
+
+We can compare the performance of the models by constrasting how well they fit in relation to the observed data, using summary statistics of the residuals of the models. 
+
+```{r}
+#| code-fold: true
+model_list <- c("m2_lm", "m2_gam1", "m2_gam2")
+
+model_list_loess <- c("m2_loess1", "m2_loess2", "m2_loess3", "m2_loess4")
+
+my_metrics <- metric_set(rmse, mae, mape, rpd)
+
+# getting observed and fitted vals
+for(m in model_list){
+   assign(paste0(m, "_pred"), 
+          tibble(
+            .pred = get(m)$fitted.values,
+            satMath = get(m)$model$satMath))
+}
+
+# getting observed and fitted vals
+for(m in model_list_loess){
+   assign(paste0(m, "_pred"), 
+          tibble(
+            .pred = get(m)$fitted,
+            satMath = get(m)$y))
+}
+
+# creating tibble with residual statistics
+all_mods <- c(model_list, model_list_loess)
+
+residual_table_stats <- data.frame(
+                            model_name = character(),
+                            rmse = numeric(),
+                            mae = numeric(),
+                            mape = numeric(),
+                            rpd = numeric(),
+                            rsq_trad = numeric())
+
+for(i in 1:7){
+  
+  mod_pred <- paste0(all_mods[i], "_pred")
+  
+  # Calculate the residuals and extract the .estimate from the result tibble
+  residual_table_stats[i, 1] <- all_mods[i]
+  residual_table_stats[i, 2] <- get(mod_pred) %>% 
+                                rmse(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i, 3] <- get(mod_pred) %>% 
+                                mae(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i, 4] <- get(mod_pred) %>% 
+                                mape(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i, 5] <- get(mod_pred) %>% 
+                                rpd(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i, 6] <- get(mod_pred) %>% 
+                                rsq_trad(satMath, .pred) %>% .$.estimate
+  
+}
+
+tibble(residual_table_stats)
+```
+
+As we can see from the table above, the model `m2_loess2` is the one that performs the best when evaluating the fit in terms of the residuals of the model. `m2_loess2` has the lowest rmse, mae, and mape. It also has the highest rpd (Ratio of Performance to Deviation), which is a statistic where higher values reflect better performance. It also has the higest R_Square.
+
+For reference, the `m2_loess2` is a loess model with 2 degrees and a span of 0.75, with the syntax as follows:
+```{r}
+m2_loess2 <- loess(satMath ~ population_c + percentTaking_c + teacherPay_c, 
+                   data = states,
+                   degree = 2,
+                   span = 0.75)
+```
+
+Given that the model with best fit was a 2-degree loess, this suggests that a certain level of non-linearity exists in the data and this is why a quadratic local regression performed best. In the next section I will explore if this can be handled through a transformation in a parametric regression model. 
+
+:::
+
+(c) Can you handle the nonlinearity by a transformation or by another parametric regression model, such as a polynomial regression? Investigate and explain. What are the tradeoffs between these nonparametric and parametric approaches?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+From the GAM plots, it appears that the non-linear relationship is for the percentTaking and teacherPay variables. The relationship between population and SatMath appears to be linear. 
+
+As a result, the models below explore linear models with transformations for percentTaking and/or teacherPay, but without transformations for population. 
+
+Note that all covariates have been centered around their mean.
+
+```{r}
+m2_lm_quad_all <- lm(satMath ~ population_c + 
+                            poly(percentTaking_c, degree = 2, raw = T) + 
+                              poly(teacherPay_c, degree = 2, raw = T),
+                 data = states)
+
+m2_lm_quad_percent <- lm(satMath ~ population_c + 
+                            poly(percentTaking_c, degree = 2, raw = T) + 
+                              teacherPay_c,
+                 data = states)
+
+m2_lm_quad_teach <- lm(satMath ~ population_c + 
+                            percentTaking_c + 
+                              poly(teacherPay_c, degree = 2, raw = T),
+                 data = states)
+
+# stargazer(m2_lm, m2_lm_quad_all, m2_lm_quad_percent, m2_lm_quad_teach, 
+#           type = "text")
+```
+
+```{r}
+#| code-fold: true
+
+new_mod_list <- c("m2_lm_quad_all", "m2_lm_quad_percent", "m2_lm_quad_teach")
+
+# getting observed and fitted vals
+for(m in new_mod_list){
+   assign(paste0(m, "_pred"), 
+          tibble(
+            .pred = get(m)$fitted.values,
+            satMath = get(m)$model$satMath))
+}
+
+for(i in 1:3){
+  mod_pred <- paste0(new_mod_list[i], "_pred")
+  
+  # Calculate the residuals and extract the .estimate from the result tibble
+  residual_table_stats[i+7, 1] <- new_mod_list[i]
+  residual_table_stats[i+7, 2] <- get(mod_pred) %>% 
+                                rmse(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i+7, 3] <- get(mod_pred) %>% 
+                                mae(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i+7, 4] <- get(mod_pred) %>% 
+                                mape(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i+7, 5] <- get(mod_pred) %>% 
+                                rpd(satMath, .pred) %>% .$.estimate
+  residual_table_stats[i+7, 6] <- get(mod_pred) %>% 
+                                rsq_trad(satMath, .pred) %>% .$.estimate
+}
+
+tibble(residual_table_stats)
+```
+From the table above, we can see that the linear models with the quadratic transformations (`m2_lm_quad_all`, `m2_lm_quad_percent`, and `m2_lm_quad_teach`) perform noticeably better in terms of residual statistics than the simple linear model without transformation (`m2_lm`). 
+
+Among the linear models with transformed covariates, the one that performs the best is the one that includes a quadratic term for both the percent of test takers as well as the teacher compensation (`m2_lm_quad_all`). However, the model only including a quadratic term for percent of test-takers (`m2_lm_quad_percent`) follows closely in terms of fit measured through the residual statistics.
+
+Finally, it is important to point out that linear model with quadratic terms (`m2_lm_quad_all`) still underperforms the best LOESS model (`m2_loess2`) in terms of fit measured through residual statistics. This speaks to the trade-off between bias and variance in a model. The linear model w/ quadratic term has a higher bias (noticed in higher aggregate residual statistics), but has a lower variance and is more easily interpretable. 
+
+In contrast, the LOESS model more accurately fits all the points (lower bias, lower residuals on aggregate), but has a higher model variance since it is closely tracking the points using local estimations. It is also a model that is not straightforward to interpret and use for inference purposes.
+
+:::
+
+### 3. Exercise D18.3
+
+Return to the `Chile.txt` dataset used in HW 2. Reanalyze the data employing generalized nonparametric regression (including generalized additive) models. As in HW2, you can remove abstained and undecided votes, and focus only on Yes and No votes.
+
+(a) What, if anything, do you learn about the data from the nonparametric regression?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+For this section, I am excluding categorical covariates from the regression models to make them more amenable to the use of non-parametric regression models. 
+
+```{r}
+#| include: false
+
+chile <- read.csv("data/chile.txt", header = TRUE, sep = "")
+
+# Setting Region, Sex, Education as factors
+chile$region <- as.factor(chile$region)
+
+chile$sex <- factor(chile$sex, levels = c("F", "M"))
+contrasts(chile$sex) <- contr.treatment(levels(chile$sex), 
+                                        base = 1)
+
+chile$education <- factor(chile$education, levels = c("P", "S", "PS"))
+contrasts(chile$education) <- contr.treatment(levels(chile$education), 
+                                              base = 1)
+
+#chile$vote <- factor(chile$vote, levels = c("N", "Y"))
+
+# Now, limit the dataset to the vote Yes/No only
+chile_1 <- chile %>% filter(., vote == "Y" | vote == "N") %>% 
+  filter(if_all(everything(), ~ !is.na(.))) %>% 
+  mutate(vote = if_else(vote == "Y", 1, 0))
+```
+
+
+```{r fig.width=12, fig.height = 4}
+# GAM model with thin plate smoother
+m3_gam_tp <- gam(vote ~ s(age, bs = "tp") + s(income, bs = "tp", k = 7)
+              + s(population, bs = "tp"),
+              data = chile_1,
+              family = binomial)
+
+# GAM model with cubic regression spline smoother
+m3_gam_cr <- gam(vote ~ s(age, bs = "cr") + s(income, bs = "cr", k = 7)
+              + s(population, bs = "cr"),
+              data = chile_1,
+              family = binomial)
+
+
+
+par(mfrow = c(1,3), cex.lab = 2)
+plot(m3_gam_tp)
+mtext("GAM Model Thin Plate", side = 3, line = -3, outer = TRUE, 
+      cex = 1.5, font = 4, cex.lab = 2)
+
+plot(m3_gam_cr)
+mtext("GAM Model Cubic Regression Spline", 
+      side = 3, line = -3, outer = TRUE, 
+      cex = 1.5, font = 4, cex.lab = 2)
+
+```
+
+**Interpretation**
+
+As shown from the plots above, using a flexible GAM model with cubic splines does show that there appears to be non-linearity in the relationship between population and vote. However, this non-linearity mostly disappears when the GAM model is setup to use a thin-plate smoother instead of a cubic spline. 
+
+The relationship between the other covariates and vote appears to be linear from the visual inspection of the plots. 
+
+To further explore the non-linearity of population v. vote, I will seek to run a logit glm with polynomial transformation for population in the next section. 
+:::
+
+(b) If the results appear to be substantially nonlinear, can you deal with the nonlinearity in a suitably respecified generalized linear model (e.g., by transforming one or more explanatory variables)? If they do not appear nonlinear, still try a transformation to see if anything changes.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+As mentioned in the previous section, I will seek to run a logit glm with polynomial transformation for population to explore whether doing this improves model fit. I will compare with a logit glm that does not use polynomial terms beyond degree 1. 
+
+```{r}
+m3_glm_base <- glm(vote ~ age + income + population,
+              data = chile_1,
+              family = binomial)
+
+m3_glm_poly2 <- glm(vote ~ age + income + 
+                      poly(population, 2, raw = TRUE),
+              data = chile_1,
+              family = binomial)
+
+m3_glm_poly3 <- glm(vote ~ age + income + 
+                      poly(population, 3, raw = TRUE),
+              data = chile_1,
+              family = binomial)
+```
+
+**Summary of Models**
+
+```{r}
+#| echo: false
+cat("GLM Logit Base Model")
+print(summary(m3_glm_base))
+cat("\n\n\nGLM Logit Pop Quad Polynomial")
+summary(m3_glm_poly2)
+cat("\n\n\nGLM Logit Pop Cubic Polynomial")
+summary(m3_glm_poly3)
+```
+
+**Anova Analysis**
+```{r}
+anova(m3_glm_base, m3_glm_poly2, m3_glm_poly3, test = "LRT")
+```
+**Interpretation** 
+
+As we can see from the summaries of the models, adding polynomial terms to the GLM model has impacts on the statistical significance of the estimators. First, adding polynomial terms to the population variable decreases the statistical significance of the population term, making it drop below significance levels. In contrast, adding polynomial terms to the population variable does not meaningfully change the significance levels or the point estimates of the other covariates (income, age); which is a reassuring sign about the robustness of the relationship between these other covariates and the vote outcome.
+
+Further, performing an anova test (LRT test), shows that including the polynomial terms in the model does **not** improve the goodness of fit measures of the model as a whole. The residual deviance of the model does drop marginally by adding the polynomials (a mechanical effect of adding more covariates), but this drop is very far from being statistically significant. 
+
+In summary, adding polynomial transformations for the population variable does **not** improve the GLM logit model. 
+:::
+
+### 4. Exercise E18.7
+
+For this analysis, use the `Duncan.txt` data. Here we are interested in the outcome `prestige` and the explanatory variable `income`.
+
+(a) Fit the local-linear regression of prestige on income with span $s = 0.6$ (see Figure 18.7 in the book). This has 5.006 equivalent degrees of freedom, very close to the number of degrees of freedom for a fourth order polynomial.
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+# Local-linear regression 
+# Code used from the non-parametric appendix of Fox
+plot(prestige ~ income, xlab = "% Respondents Income > $3,500", 
+     ylab = "Prestige", 
+     data = duncan)
+with(duncan, lines(lowess(income, prestige, f=0.6, iter=0), 
+                   lwd=2, col = "blue"))
+
+m4_lowess <- lowess(duncan$income ~ duncan$prestige, f = 0.6)
+```
+
+:::
+
+(b) Fit a fourth order polynomial of the data and compare the resulting regression curve with the local-linear regression.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+**Polynomial linear model degree 4**
+
+```{r}
+m4_lm_poly4 <- lm(prestige ~ poly(income, 4, raw = T), data = duncan)
+S(m4_lm_poly4)
+```
+
+**Comparison**
+
+As we can see from the plot below, the **local regression (lowess) in `blue` with span $s = 0.6$** provides a set of fitted values that are closely aligned with the fitted line of a polynomial (degree 4) **linear global regression (in `red` in the plot)**. 
+
+However, it is important to note that that the alignment between both methods is not great at the boundaries of the model, as expected.  
+
+We can see how important or sensitive the span in the lowess regression is. **Changing the span from $s=0.6$ to $s=0.2$, (in `green`)** results in a much more wiggled fitted line that no longer tracks the global linear regression with polynomial degree 4, especially in regions where observations are sparse. 
+
+```{r}
+#| code-fold: true
+
+plot(prestige ~ income, xlab = "% Respondents Income > $3,500", 
+     ylab = "Prestige", 
+     data = duncan)
+with(duncan, lines(lowess(income, prestige, f=0.6, iter=0), 
+                   lwd=2, col = "blue"))
+with(duncan, lines(lowess(income, prestige, f=0.2, iter=0), 
+                   lwd=2, col = "darkgreen"))
+
+lines(sort(duncan$income), fitted(m4_lm_poly4)[order(duncan$income)],
+      col = "red", lwd = 2)
+```
+
+
+
+:::
